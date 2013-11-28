@@ -8,7 +8,9 @@ import com.jme3.input.KeyInput;
 import com.jme3.input.controls.ActionListener;
 import com.jme3.input.controls.AnalogListener;
 import com.jme3.input.controls.KeyTrigger;
+import com.jme3.math.FastMath;
 import com.jme3.math.Matrix3f;
+import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import com.jme3.renderer.RenderManager;
 import com.jme3.renderer.ViewPort;
@@ -23,7 +25,7 @@ import com.jme3.scene.control.AbstractControl;
  */
 public class CarControl extends AbstractControl implements ActionListener, AnalogListener {
 
-    private SimpleApplication app;
+    private Main app;
     private GamePlayAppState game;
     private InputManager inputManager;
     private float accelerationForce = 1000.0f;
@@ -36,9 +38,10 @@ public class CarControl extends AbstractControl implements ActionListener, Analo
 
     public CarControl(SimpleApplication app, GamePlayAppState game, InputManager inputManager, Node carNode) {
         this.carNode = carNode;
-        this.app = app;
+        this.app = (Main) app;
         this.game = game;
         this.inputManager = inputManager;
+
     }
 
     @Override
@@ -46,9 +49,15 @@ public class CarControl extends AbstractControl implements ActionListener, Analo
         super.setSpatial(spatial);
         setupKeys();
         setVehicle(spatial.getControl(VehicleControl.class));
+        Quaternion YAW090   = new Quaternion().fromAngleAxis(FastMath.PI/2,   new Vector3f(0,1,0));
+        vehicle.setPhysicsRotation(YAW090);
     }
 
     private void setupKeys() {
+        /*inputManager.addMapping("ChaseCamMoveLeft", new MouseAxisTrigger(MouseInput.AXIS_X, true));
+         inputManager.addMapping("ChaseCamMoveRight", new MouseAxisTrigger(MouseInput.AXIS_X, false));
+         inputManager.addMapping("ChaseCamDown", new MouseAxisTrigger(MouseInput.AXIS_Y, true));
+         inputManager.addMapping("ChaseCamUp", new MouseAxisTrigger(MouseInput.AXIS_Y, false));*/
         inputManager.addMapping("Lefts", new KeyTrigger(KeyInput.KEY_A));
         inputManager.addMapping("Rights", new KeyTrigger(KeyInput.KEY_D));
         inputManager.addMapping("Ups", new KeyTrigger(KeyInput.KEY_W));
@@ -63,6 +72,14 @@ public class CarControl extends AbstractControl implements ActionListener, Analo
         inputManager.addListener(this, "Space");
         inputManager.addListener(this, "Reset");
         inputManager.addListener(this, "Brake");
+
+        inputManager.addMapping("slide", new KeyTrigger(KeyInput.KEY_F));
+        inputManager.addListener(this, "slide");
+
+        /*  inputManager.addListener(this, "ChaseCamDown");
+         inputManager.addListener(this, "ChaseCamUp");
+         inputManager.addListener(this, "ChaseCamMoveLeft");
+         inputManager.addListener(this, "ChaseCamMoveRight");*/
     }
 
     @Override
@@ -76,25 +93,51 @@ public class CarControl extends AbstractControl implements ActionListener, Analo
     }
 
     public void onAction(String binding, boolean value, float tpf) {
+
+        if (!app.getStateManager().hasState(app.getGame())) {
+            return;
+        }
+        
+
+        if (binding.equals("slide")) {
+            if (value) {
+                getVehicle().getWheel(1).setFrictionSlip(2);
+                getVehicle().getWheel(2).setFrictionSlip(0);
+                getVehicle().getWheel(3).setFrictionSlip(0);
+                getVehicle().getWheel(0).setFrictionSlip(2);
+            } else {
+                getVehicle().getWheel(1).setFrictionSlip(4);
+                getVehicle().getWheel(2).setFrictionSlip(4);
+                getVehicle().getWheel(3).setFrictionSlip(4);
+                getVehicle().getWheel(0).setFrictionSlip(4);
+            }
+        }
+
         if (binding.equals("Lefts")) {
             if (value) {
                 steeringValue += .5f;
             } else {
-                steeringValue += -.5f;
+                if (steeringValue == 0.5f) {
+                    steeringValue += -.5f;
+                }
             }
             vehicle.steer(steeringValue);
         } else if (binding.equals("Rights")) {
             if (value) {
                 steeringValue += -.5f;
             } else {
-                steeringValue += .5f;
+                if (steeringValue == -0.5f) {
+                    steeringValue += .5f;
+                }
             }
             vehicle.steer(steeringValue);
         } else if (binding.equals("Ups")) {
             if (value) {
-                accelerationValue -= 800;
+                accelerationValue -= 2800;
             } else {
-                accelerationValue += 800;
+                if (accelerationValue == -2800) {
+                    accelerationValue += 2800;
+                }
             }
             vehicle.accelerate(accelerationValue);
             vehicle.setCollisionShape(CollisionShapeFactory.createDynamicMeshShape(findGeom(carNode, "Car")));
@@ -102,7 +145,9 @@ public class CarControl extends AbstractControl implements ActionListener, Analo
             if (value) {
                 accelerationValue += 800;
             } else {
-                accelerationValue -= 800;
+                if (accelerationValue == 800) {
+                    accelerationValue -= 800;
+                }
             }
             vehicle.accelerate(accelerationValue);
             vehicle.setCollisionShape(CollisionShapeFactory.createDynamicMeshShape(findGeom(carNode, "Car")));
@@ -126,6 +171,7 @@ public class CarControl extends AbstractControl implements ActionListener, Analo
                 vehicle.applyImpulse(jumpForce, Vector3f.ZERO);
             }
         }
+
     }
 
     public Geometry findGeom(Spatial spatial, String name) {
@@ -148,13 +194,6 @@ public class CarControl extends AbstractControl implements ActionListener, Analo
 
     public void onAnalog(String name, float value, float tpf) {
         // throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
-    }
-
-    /**
-     * @param app the app to set
-     */
-    public void setApp(SimpleApplication app) {
-        this.app = app;
     }
 
     /**

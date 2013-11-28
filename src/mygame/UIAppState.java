@@ -3,36 +3,35 @@ package mygame;
 import com.jme3.app.Application;
 import com.jme3.app.state.AbstractAppState;
 import com.jme3.app.state.AppStateManager;
-import com.jme3.bullet.control.VehicleControl;
 import com.jme3.font.BitmapFont;
 import com.jme3.font.BitmapText;
 import com.jme3.math.ColorRGBA;
 import com.jme3.renderer.Camera;
-import com.jme3.scene.Node;
 
 
 public class UIAppState extends AbstractAppState {
 
-    private AppStateManager stateManager;
     private BitmapText hudText;  // HUD displays score
-    private Node guiNode;
+    private BitmapText timeText;
+    private Main app;
     private BitmapFont guiFont;
-    private VehicleControl vehicle;
+    private float time = 0;
+    
 
-    public UIAppState(Node guiNode, BitmapFont guiFont, VehicleControl vehicle) {
+    public UIAppState(BitmapFont guiFont) {
         super();
-        this.guiNode = guiNode;
         this.guiFont = guiFont;
+        timeText = new BitmapText(guiFont, false);
         hudText = new BitmapText(guiFont, false);
-        this.vehicle = vehicle;
     }
 
     @Override
     public void initialize(AppStateManager stateManager, Application app) {
+        
+        this.app = (Main) app;
+        
         super.initialize(stateManager, app);
-        this.stateManager = stateManager;
         Camera cam = app.getCamera();
-
         // Info: Display static playing instructions
         int screenHeight = cam.getHeight();
         // Score: this will later display health and budget
@@ -42,32 +41,46 @@ public class UIAppState extends AbstractAppState {
         hudText.setColor(ColorRGBA.White);
         hudText.setLocalTranslation(0, screenHeight - lineHeight, 0);
         hudText.setText("");
-        guiNode.attachChild(hudText);
+        this.app.getGuiNode().attachChild(hudText);
+        
+        
+        timeText.setSize(guiFont.getCharSet().getRenderedSize());
+        timeText.setColor(ColorRGBA.White);
+        timeText.setLocalTranslation(0, screenHeight - 2*lineHeight, 0);
+        timeText.setText("");
+        this.app.getGuiNode().attachChild(timeText);
+        
+        
     }
 
     @Override
     public void cleanup() {
-        guiNode.detachChild(hudText);
+        app.getGuiNode().detachChild(hudText);
         super.cleanup();
     }
 
 
     public void updateGameStateDisplay(GamePlayAppState game) {
        
-        float speed = Math.round (vehicle.getCurrentVehicleSpeedKmHour()*10)/10;
-        hudText.setText(-speed + " km/h");
+        hudText.setText(game.getSpeed() + " km/h");
+        timeText.setText(game.getTime() + " seconds");
        
     }
     
     @Override
     public void update(float tpf) {
-        // automatically detect attached game and display stats
-        GamePlayAppState game = stateManager.getState(GamePlayAppState.class);
-        if (game != null) {
-            updateGameStateDisplay(game);
-        }else{
-            
+        time += tpf;
+        
+        /* If the game has started, update the timer, else update countdown */
+        if(app.getStateManager().hasState(app.getGame())) {
+            updateGameStateDisplay(app.getGame());
+        } else if (app.getStateManager().hasState(app.getCountdown())) {
+            timeText.setText("" + (CountdownAppState.COUNTDOWN_TIMER - time));
         }
+        
+        
+
+        
     }
 
 }
